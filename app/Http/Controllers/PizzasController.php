@@ -4,21 +4,34 @@ namespace App\Http\Controllers;
 
 use App\Pizzas;
 use Illuminate\Http\Request;
+use App\Http\Resources\PizzaResource;
 use Illuminate\Support\Facades\Storage;
+use App\Http\Requests\Pizzas\StoreRequest;
 
 class PizzasController extends Controller
 {
+    protected $pizzas;
+
+    /**
+     * UserController constructor.
+     * @param Pizzas $pizzas
+     */
+    public function __construct(Pizzas $pizzas)
+    {
+        $this->pizzas = $pizzas;
+    }
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
      */
     public function index()
     {
-        //
-        $datos['pizzas'] = Pizzas::paginate(10);
+        return PizzaResource::collection($this->pizzas->with('ingredientes')->paginate());
 
-        return view('pizzas.index', $datos);
+//        $datos['pizzas'] = Pizzas::paginate(10);
+//
+//        return view('pizzas.index', $datos);
     }
 
     /**
@@ -36,45 +49,31 @@ class PizzasController extends Controller
     /**
      * Store a newly created resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @param StoreRequest $request
+     * @return PizzaResource
      */
-    public function store(Request $request)
+    public function store(StoreRequest $request)
     {
-        //validaciones
-            $campos = [
-                'Nombre'=> 'required|string',
-                'Precio'=> 'required|string',
-                'Imagen'=> 'required|max:1000|mimes:jpg,png,jpeg',
-                'Descripcion'=> 'required'
-            ];
-            $msj = ["required"=> 'El campo :attribute es requerido'];
-            $this->validate($request,$campos,$msj); 
-
-
-        //datos
-        $datosPizza = request()->except('_token');
-
-        if($request ->hasFile('Imagen')){
-            $datosPizza['Imagen'] = $request->file('Imagen')->store('uploads','public');
+        $pizza = $this->pizzas->fill($request->except('imagen', 'ingredientes'));
+        if($request->hasFile('imagen')){
+            $pizza->imagen = $request->file('imagen')->store('uploads','public');
         }
+        $pizza->save();
+        $pizza->ingredientes()->attach($request->ingredientes);
+        return new PizzaResource($pizza);
 
-
-        Pizzas::insert($datosPizza);
-
-        //return response()->json($datosPizza);
-        return redirect('pizzas')->with('mensaje','¡Pizza agregada con éxito!');
+//        return redirect('pizzas')->with('mensaje','¡Pizza agregada con éxito!');
     }
 
     /**
      * Display the specified resource.
      *
-     * @param  \App\Pizzas  $pizzas
-     * @return \Illuminate\Http\Response
+     * @param Pizzas $pizza
+     * @return PizzaResource
      */
-    public function show(Pizzas $pizzas)
+    public function show(Pizzas $pizza)
     {
-        //
+        return new PizzaResource($pizza);
     }
 
     /**
@@ -94,47 +93,41 @@ class PizzasController extends Controller
     /**
      * Update the specified resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Pizzas  $pizzas
-     * @return \Illuminate\Http\Response
+     * @param StoreRequest $request
+     * @param Pizzas $pizza
+     * @return PizzaResource
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, Pizzas $pizza)
     {
-        //
-        $datosPizza = request()->except(['_token','_method']);
-
-        if($request ->hasFile('Imagen')){
-            $pizza = Pizzas::findOrFail($id);
-
+        $pizza->fill($request->except('imagen'));
+        if($request->hasFile('imagen')){
             Storage::delete('public/'.$pizza->imagen);
 
-            $datosPizza['Imagen'] = $request->file('Imagen')->store('uploads','public');
+            $pizza->imagen = $request->file('imagen')->store('uploads','public');
         }
+        $pizza->update();
+        $pizza->ingredientes()->sync($request->ingredientes);
 
-
-        Pizzas::where('id','=',$id)->update($datosPizza);
-
-        // $pizza = Pizzas::findOrFail($id);
-        // return view('pizzas.edit', compact('pizza'));
-        return redirect('pizzas')->with('mensaje','¡Pizza modificada con éxito!');;
+        return new PizzaResource($pizza);
+//        return redirect('pizzas')->with('mensaje','¡Pizza modificada con éxito!');;
 
     }
 
     /**
      * Remove the specified resource from storage.
      *
-     * @param  \App\Pizzas  $pizzas
-     * @return \Illuminate\Http\Response
+     * @param Pizzas $pizza
+     * @return PizzaResource
+     * @throws \Exception
      */
-    public function destroy($id)
+    public function destroy(Pizzas $pizza)
     {
-        //
-        $pizza = Pizzas::findOrFail($id);
 
-        if(Storage::delete('public/'.$pizza->imagen)){
-            Pizzas::destroy($id);    
-        }
-        
-        return redirect('pizzas')->with('mensaje','¡Pizza Eliminada!');;
+        Storage::delete('public/'.$pizza->imagen);
+        $pizza->delete();
+
+        return new PizzaResource($pizza);
+
+//        return redirect('pizzas')->with('mensaje','¡Pizza Eliminada!');;
     }
 }

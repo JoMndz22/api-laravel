@@ -2,25 +2,36 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Ingredientes\StoreRequest;
+use App\Http\Resources\IngredientesResource;
 use App\Ingredientes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
-
-
 class IngredientesController extends Controller
 {
+    protected $ingredintes;
+
+    /**
+     * IngredientesController constructor.
+     * @param Ingredientes $ingredintes
+     */
+    public function __construct(Ingredientes $ingredintes)
+    {
+        $this->ingredintes = $ingredintes;
+    }
+
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
      */
     public function index()
     {
-        //
-        $datos['ingredientes'] = Ingredientes::paginate(10);
+        return IngredientesResource::collection($this->ingredintes->paginate());
 
-        return view('ingredientes.index', $datos);
+//        $datos['ingredientes'] = Ingredientes::paginate(10);
+//        return view('ingredientes.index', $datos);
     }
 
     /**
@@ -38,43 +49,32 @@ class IngredientesController extends Controller
     /**
      * Store a newly created resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @param StoreRequest $request
+     * @return IngredientesResource
      */
-    public function store(Request $request)
+    public function store(StoreRequest $request)
     {
-        //validaciones
-        $campos = [
-                'Nombre'=> 'required|string',
-                'Precio'=> 'required|string',
-                'Imagen'=> 'required|max:1000|mimes:jpg,png,jpeg'
-            ];
-        $msj = ["required"=> 'El campo :attribute es requerido'];
-        $this->validate($request,$campos,$msj); 
-
-
-        //$datosIngredientes = request()->all();
-        $datosIngredientes =  request()->except('_token');
-
-        if($request ->hasFile('Imagen')){
-            $datosIngredientes['Imagen'] = $request->file('Imagen')->store('uploads','public');
+        $ingrediente = $this->ingredintes->fill($request->except('imagen'));
+        if($request->hasFile('imagen')){
+            $ingrediente->imagen = $request->file('imagen')->store('uploads','public');
         }
+        $ingrediente->save();
 
-        Ingredientes::insert($datosIngredientes);
+        return new IngredientesResource($ingrediente);
 
         //return response()->json($datosIngredientes);
-        return redirect('ingredientes')->with('mensaje','¡¡Ingrediente agregado con éxito!!');
+//        return redirect('ingredientes')->with('mensaje','¡¡Ingrediente agregado con éxito!!');
     }
 
     /**
      * Display the specified resource.
      *
-     * @param  \App\Ingredientes  $ingredientes
-     * @return \Illuminate\Http\Response
+     * @param Ingredientes $ingrediente
+     * @return IngredientesResource
      */
-    public function show(Ingredientes $ingredientes)
+    public function show(Ingredientes $ingrediente)
     {
-        //
+        return new IngredientesResource($ingrediente);
     }
 
     /**
@@ -94,47 +94,38 @@ class IngredientesController extends Controller
     /**
      * Update the specified resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Ingredientes  $ingredientes
-     * @return \Illuminate\Http\Response
+     * @param StoreRequest $request
+     * @param Ingredientes $ingrediente
+     * @return IngredientesResource
      */
-    public function update(Request $request, $id)
+    public function update(StoreRequest $request, Ingredientes $ingrediente)
     {
-        //
-        $datosIngredientes =  request()->except(['_token','_method']);
-
-        if($request ->hasFile('Imagen')){
-            $ingrediente = Ingredientes::findOrFail($id); //Busca ingrediente por ID
+        $ingrediente->fill($request->except('imagen'));
+        if($request ->hasFile('imagen')){
             Storage::delete('public/'.$ingrediente->imagen);//Eliminar imagen dando ruta
-
-            $datosIngredientes['Imagen'] = $request->file('Imagen')->store('uploads','public');
+            $ingrediente->imagen = $request->file('imagen')->store('uploads','public');
         }
+        $ingrediente->update();
 
-        Ingredientes::where('id','=',$id)->update($datosIngredientes);
+        return new IngredientesResource($ingrediente);
 
 
-        //$ingrediente = Ingredientes::findOrFail($id);
-        //return view('ingredientes.edit', compact('ingrediente'));
-        return redirect('ingredientes')->with('mensaje','¡¡Ingrediente modificado con éxito!!');
+//        return redirect('ingredientes')->with('mensaje','¡¡Ingrediente modificado con éxito!!');
     }
 
     /**
      * Remove the specified resource from storage.
      *
-     * @param  \App\Ingredientes  $ingredientes
-     * @return \Illuminate\Http\Response
+     * @param Ingredientes $ingrediente
+     * @return IngredientesResource
      */
-    public function destroy($id)
+    public function destroy(Ingredientes $ingrediente)
     {
-        //
-        $ingrediente = Ingredientes::findOrFail($id);
-        
-        if(Storage::delete('public/'.$ingrediente->imagen)){
-            Ingredientes::destroy($id);
-        }
+        Storage::delete('public/'.$ingrediente->imagen);
+        $ingrediente->delete();
 
-        
+        return new IngredientesResource($ingrediente);
 
-        return redirect('ingredientes')->with('mensaje','¡¡Ingrediente eliminado con éxito!!');
+//        return redirect('ingredientes')->with('mensaje','¡¡Ingrediente eliminado con éxito!!');
     }
 }

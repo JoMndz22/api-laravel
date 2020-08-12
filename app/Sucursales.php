@@ -6,5 +6,5 @@ use Illuminate\Database\Eloquent\Model;
 
 class Sucursales extends Model
 {
-    //
+    protected $guarded = [];
 }

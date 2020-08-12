@@ -2,48 +2,62 @@
 
 namespace App\Http\Controllers;
 
+use App\Pizzas;
+use App\User;
+use App\Http\Requests\User\StoreRequest;
 use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
-    public function register(Request $request) {
-    	//Recibir json 
-    	$json = $request->input('json',null);
-    	$paramsObject = json_decode($json);//objeto
-    	$params = json_decode($json,true);//array se coloca el parametro true como segundo
+    protected $user;
 
-    	//limpiar los datos que no tengan espacios ni adelante ni atras
-    	//$params = array_map('trim', $params);
+    /**
+     * UserController constructor.
+     * @param User $user
+     */
+    public function __construct(User $user)
+    {
+        $this->user = $user;
+    }
 
-    	//Validar los datos con funcion de laravel 
-    	$validate = \Validator::make($params, [
-    		'name' 		=> 'required|alpha',
-    		'surname' 	=> 'required|alpha',
-    		'email'		=> 'required|email|unique:users',
-    		'password'	=> 'required'
-    	]);
-    	if (!empty($params) && !empty($paramsObject)) {
-    		if ($validate->fails()) {
-				$data = array(
-		    		'status' 	=> 'error', 
-		    		'code'		=> 404,
-		    		'message'	=> 'Error al crear el usuario',
-		    		'errors'	=> $validate->errors()
-		    	);
-			}else {
-				$data = array(
-		    		'status' 	=> 'success', 
-		    		'code'		=> 200,
-		    		'message'	=> 'El usuario se ha creado correctamente'
-		    	);
-			}
-    	}else {
-    		$data = array(
-	    		'status' 	=> 'error', 
-	    		'code'		=> 400,
-	    		'message'	=> 'Datos incorrectos'
-	    	);
-    	}
-    	return response()->json($data, $data['code']);
+    /**
+     * @param StoreRequest $request
+     * @return User
+     */
+    public function store(StoreRequest $request)
+    {
+        $user = $this->user->fill($request->all());
+        $user->save();
+
+        return $user;
+    }
+
+    public function pedido(Request $request)
+    {
+        $totalPizza = 0;
+        $totalIngredientes = 0;
+        $pizzasTotal = [];
+        $pizzas = Pizzas::whereIn('id', $request->pizzas)->with('ingredientes')->get();
+        collect($pizzas)->each(function ($pizza) use (&$totalPizza, &$totalIngredientes, &$pizzasTotal) {
+            $pizzaValor = 0;
+            $ingredientesValor = 0;
+            collect($pizza->ingredientes)->each(function ($ingrediente) use (&$totalIngredientes, &$ingredientesValor) {
+                $totalIngredientes += $ingrediente->precio;
+                $ingredientesValor += $ingrediente->precio;
+            });
+            $totalPizza += $pizza->precio;
+            $pizzaValor = $pizza->precio;
+            array_push($pizzasTotal, [
+                'pizza' => $pizza->nombre,
+                'ingredientes' => $pizza->ingredientes->pluck('nombre'),
+                'subtotal' => $ingredientesValor + $pizzaValor
+            ]);
+        });
+
+        return response([
+            'numero de orden:' => "#". random_int(13349, 99999),
+            'orden' => $pizzasTotal,
+            'total' => "$" . number_format($totalPizza + $totalIngredientes, 2),
+        ]);
     }
 }

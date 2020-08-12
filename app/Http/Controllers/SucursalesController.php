@@ -2,19 +2,32 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Sucursales\StoreRequest;
+use App\Http\Resources\SucursalesResource;
 use App\Sucursales;
 use Illuminate\Http\Request;
 
 class SucursalesController extends Controller
 {
+    protected $sucursales;
+
+    /**
+     * UserController constructor.
+     * @param Sucursales $sucursales
+     */
+    public function __construct(Sucursales $sucursales)
+    {
+        $this->sucursales = $sucursales;
+    }
+
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
      */
     public function index()
     {
-        //
+        return SucursalesResource::collection($this->sucursales->paginate());
     }
 
     /**
@@ -31,22 +44,25 @@ class SucursalesController extends Controller
      * Store a newly created resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @return SucursalesResource
      */
-    public function store(Request $request)
+    public function store(StoreRequest $request)
     {
-        //
+        $sucursal = $this->sucursales->fill($request->all());
+        $sucursal->save();
+
+        return new SucursalesResource($sucursal);
     }
 
     /**
      * Display the specified resource.
      *
      * @param  \App\Sucursales  $sucursales
-     * @return \Illuminate\Http\Response
+     * @return SucursalesResource
      */
-    public function show(Sucursales $sucursales)
+    public function show(Sucursales $sucursale)
     {
-        //
+        return new SucursalesResource($sucursale);
     }
 
     /**
@@ -65,21 +81,26 @@ class SucursalesController extends Controller
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  \App\Sucursales  $sucursales
-     * @return \Illuminate\Http\Response
+     * @return SucursalesResource
      */
     public function update(Request $request, Sucursales $sucursales)
     {
-        //
+        $sucursales->fill($request->all());
+        $sucursales->update();
+
+        return new SucursalesResource($sucursales);
     }
 
     /**
      * Remove the specified resource from storage.
      *
      * @param  \App\Sucursales  $sucursales
-     * @return \Illuminate\Http\Response
+     * @return SucursalesResource
      */
-    public function destroy(Sucursales $sucursales)
+    public function destroy(Sucursales $sucursale)
     {
-        //
+        $sucursale->delete();
+
+        return new SucursalesResource($sucursale);
     }
 }
